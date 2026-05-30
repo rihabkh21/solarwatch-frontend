@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SolarWatch</string>
+    <string name="title_activity_main">SolarWatch</string>
+    <string name="package_name">com.solarwatch.iot</string>
+    <string name="custom_url_scheme">com.solarwatch.iot</string>
+</resources>

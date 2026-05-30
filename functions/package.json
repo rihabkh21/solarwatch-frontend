@@ -1,0 +1,24 @@
+{
+  "name": "solarwatch-firebase-functions",
+  "private": true,
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "lint": "echo \"No lint configured\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^13.8.0",
+    "firebase-functions": "^7.2.5",
+    "mqtt": "^5.15.1"
+  },
+  "overrides": {
+    "uuid": "^14.0.0",
+    "@tootallnate/once": "^3.0.1"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "cmake.sourceDirectory": "C:/Users/asus/Desktop/pfer1/node_modules/bare-fs",
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+  "deno.unstable": ["temporal"],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

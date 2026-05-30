@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "950107235339",
+    "firebase_url": "https://solarwatch-8c68a-default-rtdb.firebaseio.com",
+    "project_id": "solarwatch-8c68a",
+    "storage_bucket": "solarwatch-8c68a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:950107235339:android:d0416e753d2a227c91930e",
+        "android_client_info": {
+          "package_name": "com.solarwatch.iot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmkyP4iLkf0EjmIWX8ObjbQ5JaN05lnls"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

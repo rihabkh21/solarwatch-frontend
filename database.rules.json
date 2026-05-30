@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "sensors": {
+      ".read": "auth != null",
+      "$deviceId": {
+        "current": {
+          ".read": "auth != null",
+          ".write": true
+        },
+        "history": {
+          ".read": "auth != null",
+          ".write": true
+        }
+      }
+    }
+  }
+}
