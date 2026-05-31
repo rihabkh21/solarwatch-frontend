@@ -7,9 +7,13 @@ import { db } from '../config/firebase';
 
 // ─── Types exportés ────────────────────────────────────────────────────────────
 
+// Statuts possibles d'une intervention : en attente, en cours ou terminee
 export type InterventionStatus   = 'pending' | 'in_progress' | 'done';
+
+// Niveaux de priorite d'une intervention, alignes sur les types d'alertes capteurs
 export type InterventionPriority = 'critical' | 'warning' | 'info';
 
+// Structure d'un message echange entre admin et technicien dans une intervention
 export interface InterventionMessage {
   id: string;
   from: string;
@@ -19,6 +23,7 @@ export interface InterventionMessage {
   timestamp: string;
 }
 
+// Structure complete d'une intervention de maintenance
 export interface Intervention {
   id: string;
   alertId?: string;
@@ -38,6 +43,7 @@ export interface Intervention {
 
 // ─── Context ───────────────────────────────────────────────────────────────────
 
+// Donnees necessaires pour creer une nouvelle intervention
 interface CreateInterventionPayload {
   title: string;
   description: string;
@@ -49,6 +55,7 @@ interface CreateInterventionPayload {
   alertId?: string;
 }
 
+// Interface exposee par le contexte aux composants enfants
 interface InterventionContextType {
   interventions: Intervention[];
   loading: boolean;
@@ -67,7 +74,10 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // ── Charger interventions depuis Firestore ──────────────────────────────────
+
+  // Ecoute en temps reel la collection Firestore et met a jour l'etat local a chaque changement
   useEffect(() => {
+    // Requete triee par date de creation decroissante (plus recentes en premier)
     const q = query(collection(db, 'interventions'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map((d) => {
@@ -83,6 +93,7 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
           assignedToName: item.assignedToName,
           createdBy:      item.createdBy,
           createdByName:  item.createdByName,
+          // Conversion du Timestamp Firestore en chaine ISO pour uniformite
           createdAt:      item.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
           updatedAt:      item.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
           notes:          item.notes || '',
@@ -95,12 +106,16 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
       console.error('Erreur interventions:', error);
       setLoading(false);
     });
+    // Desinscription de l'ecouteur Firestore au demontage du composant
     return () => unsub();
   }, []);
 
   // ── Créer une intervention ──────────────────────────────────────────────────
+
+  // Cree une intervention dans Firestore avec un premier message automatique de l'admin
   const createIntervention = async (payload: CreateInterventionPayload): Promise<Intervention> => {
     const now = new Date().toISOString();
+    // Message initial genere automatiquement pour tracer la creation de l'intervention
     const firstMessage: InterventionMessage = {
       id:        `msg-${Date.now()}`,
       from:      payload.createdBy,
@@ -115,12 +130,12 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
       title:          payload.title,
       description:    payload.description,
       priority:       payload.priority,
-      status:         'pending',
+      status:         'pending',         // Toute nouvelle intervention commence en attente
       assignedTo:     payload.assignedTo,
       assignedToName: payload.assignedToName,
       createdBy:      payload.createdBy,
       createdByName:  payload.createdByName,
-      createdAt:      serverTimestamp(),
+      createdAt:      serverTimestamp(), // Horodatage serveur Firestore pour eviter les decalages horaires
       updatedAt:      serverTimestamp(),
       notes:          '',
       messages:       [firstMessage],
@@ -128,6 +143,7 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
 
     const ref = await addDoc(collection(db, 'interventions'), docData);
 
+    // Retourne l'objet local immediatement sans attendre la mise a jour Firestore
     return {
       id:        ref.id,
       ...payload,
@@ -140,6 +156,8 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Mettre à jour le statut ─────────────────────────────────────────────────
+
+  // Met a jour le statut d'une intervention et, si fourni, les notes associees
   const updateStatus = async (id: string, status: InterventionStatus, notes?: string) => {
     const updates: Record<string, unknown> = { status, updatedAt: serverTimestamp() };
     if (notes !== undefined) updates.notes = notes;
@@ -147,6 +165,8 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Envoyer un message ──────────────────────────────────────────────────────
+
+  // Ajoute un message dans le fil de discussion d'une intervention via arrayUnion Firestore
   const sendMessage = async (
     id: string,
     from: string,
@@ -162,6 +182,7 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
       content,
       timestamp: new Date().toISOString(),
     };
+    // arrayUnion ajoute le message sans ecraser les messages existants
     await updateDoc(doc(db, 'interventions', id), {
       messages:  arrayUnion(newMsg),
       updatedAt: serverTimestamp(),
@@ -169,12 +190,16 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
   };
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  // Retourne les interventions ou l'utilisateur est implique (assignataire ou createur)
   const getMyInterventions = (email: string): Intervention[] =>
     interventions.filter((i) => i.assignedTo === email || i.createdBy === email);
 
+  // Recherche une intervention par son identifiant unique
   const getInterventionById = (id: string): Intervention | undefined =>
     interventions.find((i) => i.id === id);
 
+  // Compte les interventions non terminees avec des messages d'autres utilisateurs (badge de notification)
   const unreadCount = (email: string): number =>
     interventions.filter(
       (i) =>
@@ -184,6 +209,7 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
     ).length;
 
   return (
+    // Fournit toutes les fonctions et donnees d'intervention aux composants enfants
     <InterventionContext.Provider
       value={{
         interventions,
@@ -201,6 +227,7 @@ export function InterventionProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Hook personnalise pour acceder au contexte d'intervention depuis n'importe quel composant
 export function useInterventions() {
   const context = useContext(InterventionContext);
   if (context === undefined) {

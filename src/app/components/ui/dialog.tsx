@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import * as React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
 
 import { cn } from "./utils";
@@ -30,25 +30,30 @@ function DialogClose({
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
-function DialogOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
-      className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+// Fix : DialogOverlay doit utiliser React.forwardRef pour que Radix UI
+// puisse lui passer une ref sans warning console
+const DialogOverlay = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    data-slot="dialog-overlay"
+    className={cn(
+      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+      className,
+    )}
+    {...props}
+  />
+));
+DialogOverlay.displayName = "DialogOverlay";
 
+// Fix : aria-describedby={undefined} par defaut supprime le warning Radix
+// quand aucun DialogDescription n'est present dans le contenu
 function DialogContent({
   className,
   children,
+  "aria-describedby": ariaDescribedBy = undefined,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
@@ -56,6 +61,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        aria-describedby={ariaDescribedBy}
         className={cn(
           "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
           className,
@@ -133,4 +139,3 @@ export {
   DialogTitle,
   DialogTrigger,
 };
-

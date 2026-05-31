@@ -7,10 +7,11 @@
 
 // ==================== CONFIGURATION ESP32 ====================
 
+// Configuration de base : WiFi, URL du serveur et broches GPIO utilisées par les capteurs
 /*
 // Configuration WiFi
-const char* ssid = "VOTRE_WIFI_SSID";
-const char* password = "VOTRE_MOT_DE_PASSE_WIFI";
+const char* ssid = "_WIFI_";
+const char* password = "MOT_DE_PASSE_WIFI";
 
 // URL de l'API Backend
 const char* serverUrl = "https://europe-west1-YOUR_PROJECT_ID.cloudfunctions.net/api/sensor-data";
@@ -35,6 +36,7 @@ const float SHUNT_RESISTANCE = 0.1;  // 0.1Ω
 
 // ==================== STRUCTURE DE DONNÉES ====================
 
+// Format JSON complet envoyé par l'ESP32 à l'API backend à chaque cycle de mesure
 /*
 Structure JSON à envoyer à l'API:
 
@@ -76,6 +78,7 @@ Structure JSON à envoyer à l'API:
 
 // ==================== CODE ARDUINO EXEMPLE ====================
 
+// Code complet Arduino : initialisation WiFi, lecture des capteurs, construction JSON et envoi HTTP POST
 /*
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -132,13 +135,16 @@ void loop() {
   
   float lux = bh1750.readLightLevel();
   
+  // Conversion ADC -> tension réelle via la formule du pont diviseur
   int voltageRaw = analogRead(VOLTAGE_ADC_PIN);
   float voltage = (voltageRaw / 4095.0) * 3.3 * ((R1 + R2) / R2);
   
+  // Conversion ADC -> courant via la chute de tension sur le shunt
   int currentRaw = analogRead(CURRENT_ADC_PIN);
   float voltageDropMv = (currentRaw / 4095.0) * 3300.0;
   float current = voltageDropMv / (SHUNT_RESISTANCE * 1000.0);
   
+  // Calcul de la puissance instantanée du panneau solaire
   float power = voltage * (current / 1000.0);
   
   // Créer JSON
@@ -154,12 +160,14 @@ void loop() {
   uint8_t addr[8];
   ds18b20.getAddress(addr, 0);
   char addressStr[24];
+  // Formatage de l'adresse 1-Wire en chaine hexadecimale lisible
   sprintf(addressStr, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", 
           addr[0], addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7]);
   doc["ds18b20"]["address"] = addressStr;
   
   doc["bh1750"]["lux"] = lux;
   doc["bh1750"]["mode"] = "Continuous_H_Res_Mode";
+  // Classification du niveau de lumiere selon des seuils definis
   if (lux < 10) doc["bh1750"]["lightLevel"] = "dark";
   else if (lux < 1000) doc["bh1750"]["lightLevel"] = "dim";
   else if (lux < 20000) doc["bh1750"]["lightLevel"] = "normal";
@@ -178,7 +186,7 @@ void loop() {
   doc["calculated"]["energy24h"] = 0; // À calculer côté serveur
   doc["calculated"]["efficiency"] = 14.2; // À calculer
   
-  // Envoyer les données
+  // Envoi des donnees vers l'API si la connexion WiFi est active
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(serverUrl);
@@ -205,6 +213,7 @@ void loop() {
 
 // ==================== BIBLIOTHÈQUES REQUISES ====================
 
+// Dependances a installer pour compiler le code Arduino sur ESP32
 /*
 Installer via Arduino Library Manager:
 
@@ -228,6 +237,7 @@ lib_deps =
 
 // ==================== SCHÉMA DE CONNEXION ====================
 
+// Brochage physique de chaque capteur sur l'ESP32-WROOM-32U
 /*
 ESP32-WROOM-32U Pinout:
 
@@ -246,15 +256,13 @@ Pont Diviseur de Tension (Panneau Solaire):
   - Panneau (+) → R1 (30kΩ) → GPIO 34 + R2 (10kΩ) → GND
   - Note: Voltage max mesurable = 13.2V (avec 3.3V ref)
 
-Shunt de Courant (0.1Ω):
-  - Panneau (+) → Shunt → Charge
-  - GPIO 35 mesure la chute de tension aux bornes du shunt
-  - Note: Current max = 1A (avec 3.3V ref et 0.1Ω)
+
 
 Alimentation ESP32:
   - USB-C → 5V régulé à 3.3V par le régulateur interne
 */
 
+// Objet exporté contenant les métadonnées du module ESP32 utilisé dans l'interface SolarWatch
 export const ESP32_DOCUMENTATION = {
   title: "Documentation ESP32 pour SolarWatch",
   version: "1.0.0",
@@ -265,14 +273,14 @@ export const ESP32_DOCUMENTATION = {
     wifi: "802.11 b/g/n avec antenne U.FL externe",
     power: "5V USB-C (500mA)",
     sensors: [
-      "DS18B20 - Température (1-Wire)",
-      "BH1750 - Luminosité (I2C)",
-      "Pont diviseur 30kΩ/10kΩ - Tension",
-      "Shunt 0.1Ω - Courant"
+      "DS18B20 - Température (1-Wire)",       // Capteur de temperature du panneau
+      "BH1750 - Luminosité (I2C)",            // Capteur de luminosite ambiante
+      "Pont diviseur 30kΩ/10kΩ - Tension",   // Mesure de la tension du panneau
+      "Shunt 0.1Ω - Courant"                 // Mesure du courant produit
     ]
   },
   
-  apiEndpoint: "/sensor-data",
-  updateInterval: "3 secondes",
-  dataFormat: "JSON",
+  apiEndpoint: "/sensor-data",   // Route API qui recoit les donnees de l'ESP32
+  updateInterval: "3 secondes", // Frequence d'envoi des mesures
+  dataFormat: "JSON",           // Format de serialisation des donnees
 };

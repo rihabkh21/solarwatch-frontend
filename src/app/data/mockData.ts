@@ -2,6 +2,7 @@ import { getApproximateSunrise, getApproximateSunset } from '../utils/dateTime';
 
 // ─── Solar Panel Config ───────────────────────────────────────────────────────
 
+// Interface decrivant la structure complete d'un panneau solaire avec ses capteurs et specifications
 export interface SolarPanel {
   id: string;
   name: string;
@@ -41,8 +42,10 @@ export interface SolarPanel {
   installDate: string;
 }
 
+// Liste des panneaux solaires fictifs utilises pour les tests et la demonstration de l'application
 export const mockPanels: SolarPanel[] = [
   {
+    // Panneau principal installe a Kairouan, facteur d'efficacite maximal (1.0)
     id: 'P1',
     name: 'panneau1',
     location: 'kairouan',
@@ -60,6 +63,7 @@ export const mockPanels: SolarPanel[] = [
     installDate: '2024-03-15',
   },
   {
+    // Panneau expose a l'Est, efficacite reduite a 88% avec compensation de temperature de -3°C
     id: 'P2',
     name: 'Panneau Toit Est',
     location: 'Toit, exposition Est',
@@ -77,6 +81,7 @@ export const mockPanels: SolarPanel[] = [
     installDate: '2024-03-15',
   },
   {
+    // Panneau en zone ombragee, efficacite reduite a 74% avec capteur BH1750 sur multiplexeur I2C
     id: 'P3',
     name: 'Panneau Jardin',
     location: 'Jardin, légère ombre partielle',
@@ -97,6 +102,7 @@ export const mockPanels: SolarPanel[] = [
 
 // ─── SensorData ───────────────────────────────────────────────────────────────
 
+// Interface representant une mesure complete de tous les capteurs a un instant donne
 export interface SensorData {
   timestamp: string;
   voltageDivider: {
@@ -136,24 +142,29 @@ export interface SensorData {
 
 // ─── Génération données temps réel ────────────────────────────────────────────
 
+// Genere des donnees simulees en temps reel pour un panneau donne, en tenant compte de la position du soleil
 export function generatePanelRealtimeData(panel: SolarPanel): SensorData {
   const now = new Date();
   const hour = now.getHours();
   const sunrise = getApproximateSunrise(now);
   const sunset  = getApproximateSunset(now);
   const isDay   = hour >= sunrise && hour <= sunset;
+  // Calcul de l'intensite solaire via une courbe sinusoidale entre lever et coucher du soleil
   const baseSun = isDay ? Math.max(0, Math.sin((hour - sunrise) * Math.PI / (sunset - sunrise))) : 0;
   const sunIntensity = baseSun * panel.efficiencyFactor;
 
   const panelVoltage  = 6 + (sunIntensity * 6);
   const panelCurrent  = sunIntensity * 1000;
   const power         = (panelVoltage * panelCurrent) / 1000;
+  // Conversion de la tension panneau en valeur brute ADC 12 bits
   const adcRaw        = Math.floor((panelVoltage / 4) / 3.3 * 4095);
   const lux           = Math.max(0, baseSun * 120000 * panel.efficiencyFactor + (Math.random() - 0.5) * 5000);
   const ambientTemp   = 22 + (baseSun * 18);
+  // La temperature du panneau est la somme de la temperature ambiante, du chauffage solaire et de l'offset du panneau
   const panelTemp     = ambientTemp + (sunIntensity * 25) + panel.tempOffset;
   const acs712Voltage = 2500 + (panel.sensors.acs712.sensitivity * (panelCurrent / 1000));
 
+  // Classe le niveau de lumiere selon des seuils en lux
   const getLightLevel = (luxValue: number): 'dark' | 'dim' | 'normal' | 'bright' => {
     if (luxValue < 10)    return 'dark';
     if (luxValue < 1000)  return 'dim';
@@ -164,6 +175,7 @@ export function generatePanelRealtimeData(panel: SolarPanel): SensorData {
   return {
     timestamp: now.toISOString(),
     voltageDivider: {
+      // Ajout d'un bruit aleatoire de ±0.1V pour simuler les fluctuations reelles du capteur
       voltage:    panelVoltage + (Math.random() - 0.5) * 0.2,
       voltageRaw: adcRaw + Math.floor((Math.random() - 0.5) * 20),
       r1: panel.sensors.voltageDivider.r1,
@@ -201,6 +213,7 @@ export function generatePanelRealtimeData(panel: SolarPanel): SensorData {
 
 // ─── Génération historique ────────────────────────────────────────────────────
 
+// Genere un historique heure par heure sur la periode demandee (defaut 24h) pour les graphiques
 export function generateHistoricalData(hours: number = 24): SensorData[] {
   const data: SensorData[] = [];
   const now = new Date();
@@ -271,6 +284,7 @@ export function generateHistoricalData(hours: number = 24): SensorData[] {
 
 // ─── Alertes ──────────────────────────────────────────────────────────────────
 
+// Interface d'une alerte generee automatiquement lors d'une anomalie detectee par un capteur
 export interface Alert {
   id: string;
   type: 'critical' | 'warning' | 'info';
@@ -280,6 +294,7 @@ export interface Alert {
   resolved: boolean;
 }
 
+// Alertes de demonstration couvrant les quatre types d'anomalies possibles (tension, temperature, lumiere, courant)
 export const mockAlerts: Alert[] = [
   {
     id: '1',
@@ -320,6 +335,7 @@ export const mockAlerts: Alert[] = [
 export type InterventionStatus   = 'pending' | 'in_progress' | 'done';
 export type InterventionPriority = 'critical' | 'warning' | 'info';
 
+// Interface d'un message echange entre admin et technicien dans le cadre d'une intervention
 export interface InterventionMessage {
   id: string;
   from: string;
@@ -329,6 +345,7 @@ export interface InterventionMessage {
   timestamp: string;
 }
 
+// Interface d'une intervention maintenance declenchee suite a une alerte ou manuellement par l'admin
 export interface Intervention {
   id: string;
   alertId?: string;
@@ -346,6 +363,7 @@ export interface Intervention {
   messages: InterventionMessage[];
 }
 
+// Interventions de demonstration simulant des echanges reels entre admin et technicien
 export const mockInterventions: Intervention[] = [
   {
     id: 'int-1',
@@ -409,6 +427,7 @@ export const mockInterventions: Intervention[] = [
 
 // ─── Prédictions IA ───────────────────────────────────────────────────────────
 
+// Interface d'une prediction generee par le module IA pour anticiper les pannes ou optimiser les performances
 export interface AIPrediction {
   id: string;
   type: 'maintenance' | 'performance' | 'fault';
@@ -419,6 +438,7 @@ export interface AIPrediction {
   recommendation: string;
 }
 
+// Predictions de demonstration couvrant les trois types : maintenance, panne et performance
 export const mockPredictions: AIPrediction[] = [
   {
     id: '1',
@@ -451,6 +471,7 @@ export const mockPredictions: AIPrediction[] = [
 
 // ─── Stats système ────────────────────────────────────────────────────────────
 
+// Interface des statistiques globales du systeme affichees sur le tableau de bord
 export interface SystemStats {
   totalEnergy24h: number;
   currentPower: number;
@@ -460,19 +481,23 @@ export interface SystemStats {
   revenue: number;
 }
 
+// Calcule les statistiques systeme a partir des dernieres donnees capteurs, incluant CO2 evite et revenu estime
 export function generateSystemStats(currentData: SensorData): SystemStats {
   return {
     totalEnergy24h: currentData.calculated.energy24h,
     currentPower:   currentData.calculated.power,
     efficiency:     currentData.calculated.efficiency,
     uptime:         99.4,
+    // CO2 evite : 0.5 kg par kWh produit (facteur moyen du reseau electrique tunisien)
     co2Saved:       (currentData.calculated.energy24h / 1000) * 0.5,
+    // Revenu estime : 0.4 DT par kWh produit
     revenue:        (currentData.calculated.energy24h / 1000) * 0.4,
   };
 }
 
 // ─── Hardware Specs ───────────────────────────────────────────────────────────
 
+// Specifications techniques completes du materiel utilise, affichees dans la page HardwareConfig
 export const hardwareSpecs = {
   microcontroller: {
     model:     'ESP32-WROOM-32U',

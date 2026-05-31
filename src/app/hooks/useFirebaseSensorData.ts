@@ -4,8 +4,12 @@ import { realtimeDb } from '../config/firebase';
 import { generatePanelRealtimeData, mockPanels, type SensorData, type SolarPanel } from '../data/mockData';
 
 // ── Helper — mappe les deux formats ESP32 ─────────────────────────────────────
+
+// Normalise les donnees Firebase en un objet SensorData uniforme,
+// compatible avec l'ancien et le nouveau format d'envoi de l'ESP32
 function mapFirebaseData(data: any, fallback: SensorData): SensorData {
   return {
+    // Utilise receivedAt si disponible, sinon l'heure actuelle
     timestamp: data.receivedAt || new Date().toISOString(),
 
     // Nouveau format : data.voltage.value — Ancien : data.voltageDivider.voltage
@@ -48,6 +52,7 @@ function mapFirebaseData(data: any, fallback: SensorData): SensorData {
     },
 
     // ESP32 envoie { power, energy (Wh), efficiency }
+    // energy est converti de Wh en mWh pour coherence interne
     calculated: {
       power:      data.power                 ?? data.calculated?.power          ?? fallback.calculated.power,
       energy24h:  data.energy != null ? data.energy * 1000 : (data.calculated?.energy24h ?? fallback.calculated.energy24h),
@@ -57,24 +62,33 @@ function mapFirebaseData(data: any, fallback: SensorData): SensorData {
 }
 
 // ── Hook principal — écoute ESP32_001 ─────────────────────────────────────────
+
+// Ecoute en temps reel les donnees du capteur principal ESP32_001 dans Firebase Realtime Database
+// Bascule automatiquement sur les donnees simulees si aucune donnee Firebase n'est disponible
 export function useSensorData(updateInterval: number = 3000) {
+  // Donnees de secours generees localement si Firebase ne repond pas
   const fallback = generatePanelRealtimeData(mockPanels[0]);
   const [sensorData, setSensorData] = useState<SensorData>(() => fallback);
+  // isLive indique si les donnees proviennent de l'ESP32 reel (true) ou de la simulation (false)
   const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
+    // Reference au noeud Firebase contenant les dernieres donnees de l'ESP32_001
     const dbRef = ref(realtimeDb, 'sensors/ESP32_001/current');
 
     const unsubscribe = onValue(dbRef, (snapshot) => {
       if (snapshot.exists()) {
+        // Donnees reelles disponibles : on les normalise et on active le mode live
         setSensorData(mapFirebaseData(snapshot.val(), fallback));
         setIsLive(true);
       } else {
+        // Pas de donnees Firebase : on utilise les donnees simulees
         setSensorData(generatePanelRealtimeData(mockPanels[0]));
         setIsLive(false);
       }
     });
 
+    // Desinscription de l'ecouteur Firebase au demontage du composant
     return () => off(dbRef);
   }, []);
 
@@ -82,6 +96,9 @@ export function useSensorData(updateInterval: number = 3000) {
 }
 
 // ── Par panneau spécifique ────────────────────────────────────────────────────
+
+// Ecoute les donnees Firebase d'un panneau specifique identifie par son ID (ex: P1 -> ESP32_001)
+// Si aucune donnee n'est disponible, genere des donnees mock animees pour ce panneau
 export function usePanelData(panel: SolarPanel, updateInterval: number = 2000) {
   const fallback = generatePanelRealtimeData(panel);
   const [sensorData, setSensorData] = useState<SensorData>(() => fallback);
@@ -89,6 +106,7 @@ export function usePanelData(panel: SolarPanel, updateInterval: number = 2000) {
 
   useEffect(() => {
     // FIX : panel.id est un string ('P1', 'P2'...), pas un number
+    // Extrait le numero du panneau pour construire l'identifiant Firebase (ex: P2 -> ESP32_002)
     const panelNumber = panel.id.replace('P', '');
     const deviceId    = `ESP32_00${panelNumber}`;
     const dbRef       = ref(realtimeDb, `sensors/${deviceId}/current`);
@@ -101,6 +119,7 @@ export function usePanelData(panel: SolarPanel, updateInterval: number = 2000) {
         // Fallback mock animé pour panneaux sans ESP32
         setSensorData(generatePanelRealtimeData(panel));
         setIsLive(false);
+        // Simule une mise a jour periodique tant qu'aucun ESP32 n'est connecte
         const interval = setInterval(
           () => setSensorData(generatePanelRealtimeData(panel)),
           updateInterval
@@ -109,6 +128,7 @@ export function usePanelData(panel: SolarPanel, updateInterval: number = 2000) {
       }
     });
 
+    // Desinscription de l'ecouteur au changement de panneau ou d'intervalle
     return () => off(dbRef);
   }, [panel.id, updateInterval]);
 

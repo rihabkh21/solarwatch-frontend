@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -93,6 +93,12 @@ function PanelFormDialog({ open, onClose, editPanel }: {
             <Sun className="h-5 w-5 text-amber-500" />
             {editPanel ? `Modifier — ${editPanel.id} ${editPanel.name}` : 'Ajouter un panneau solaire'}
           </DialogTitle>
+          {/* Fix Warning : DialogDescription requis par Radix UI pour l'accessibilite */}
+          <DialogDescription>
+            {editPanel
+              ? `Modifiez les informations et capteurs du panneau ${editPanel.id}.`
+              : 'Configurez les informations et capteurs du nouveau panneau solaire.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 py-2">
@@ -343,7 +349,6 @@ export function PanelManagement() {
           <p className="text-xs text-gray-500">Capteurs</p>
           <p className="text-2xl font-bold text-blue-700">{panels.length * 3}</p>
         </Card>
-        
       </div>
 
       {/* Conflits */}

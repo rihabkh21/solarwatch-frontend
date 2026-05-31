@@ -7,6 +7,7 @@ import { usePanels } from '../contexts/PanelContext';
 import { useAuth } from '../contexts/AuthContext';
 import type { SolarPanel } from '../data/mockData';
 
+// Table de correspondance entre la couleur d'un panneau et les classes Tailwind associees
 const colorMap: Record<SolarPanel['color'], { bg: string; text: string; border: string; dot: string }> = {
   amber:  { bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200',  dot: 'bg-amber-500'  },
   blue:   { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   dot: 'bg-blue-500'   },
@@ -15,6 +16,7 @@ const colorMap: Record<SolarPanel['color'], { bg: string; text: string; border: 
   rose:   { bg: 'bg-rose-50',   text: 'text-rose-700',   border: 'border-rose-200',   dot: 'bg-rose-500'   },
 };
 
+// Composant de detail d'un panneau : affiche les mesures temps reel de ses quatre capteurs
 function PanelView({ panel }: { panel: SolarPanel }) {
   const { sensorData, isLive } = usePanelData(panel, 3000);
   const c = colorMap[panel.color];
@@ -25,13 +27,19 @@ function PanelView({ panel }: { panel: SolarPanel }) {
   const voltage   = sensorData.voltageDivider.voltage;   // ✅ déjà estimé depuis lux
   const power     = sensorData.calculated.power;         // ✅ calculé dans useSensorData
 
+  // Couleur et etiquette de la temperature selon trois seuils : normale, elevee, critique
   const tempColor = temp > 70 ? 'text-red-600' : temp > 55 ? 'text-orange-500' : 'text-green-600';
   const tempLabel = temp > 70 ? 'Critique' : temp > 55 ? 'Élevée' : 'Normale';
+
+  // Etiquette de luminosite selon quatre seuils de lux
   const luxLabel  = lux > 80000 ? 'Plein soleil' : lux > 20000 ? 'Nuageux' : lux > 1000 ? 'Normal' : 'Faible';
+
+  // La tension est estimee (non mesuree) si voltageRaw vaut 0, ce qui indique l'absence de signal ADC
   const voltageEstimated = sensorData.voltageDivider.voltageRaw === 0;
 
   return (
     <div className="space-y-4">
+      {/* Entete du panneau avec nom, localisation et rendement estime */}
       <div className={`rounded-lg ${c.bg} border ${c.border} p-4 flex items-center justify-between`}>
         <div>
           <h2 className={`text-lg font-bold ${c.text}`}>{panel.name}</h2>
@@ -46,6 +54,7 @@ function PanelView({ panel }: { panel: SolarPanel }) {
       <div className="grid grid-cols-2 gap-3">
 
         {/* Température */}
+        {/* Couleur dynamique selon le seuil : vert < 55°C, orange < 70°C, rouge >= 70°C */}
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-red-100 rounded">
@@ -63,6 +72,7 @@ function PanelView({ panel }: { panel: SolarPanel }) {
         </Card>
 
         {/* Luminosité */}
+        {/* Valeur affichee en kilolux (lux / 1000) pour une meilleure lisibilite */}
         <Card className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-yellow-100 rounded">
@@ -80,6 +90,7 @@ function PanelView({ panel }: { panel: SolarPanel }) {
         </Card>
 
         {/* Tension — estimée depuis lux via useSensorData */}
+        {/* Bordure en pointilles orange si la tension est estimee (pas de signal ADC disponible) */}
         <Card className={`p-4 ${voltageEstimated ? 'border-dashed border-orange-300 bg-orange-50' : ''}`}>
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-orange-100 rounded">
@@ -93,6 +104,7 @@ function PanelView({ panel }: { panel: SolarPanel }) {
           <p className="text-3xl font-bold text-orange-500">
             {voltage.toFixed(2)}<span className="text-lg"> V</span>
           </p>
+          {/* Indique a l'utilisateur si la valeur est mesuree ou estimee */}
           <p className="text-xs mt-1 text-orange-400">
             {voltageEstimated ? 'Estimée via luminosité' : 'Mesurée'}
           </p>
@@ -113,13 +125,14 @@ function PanelView({ panel }: { panel: SolarPanel }) {
           <p className="text-3xl font-bold text-gray-800">
             {currentMa.toFixed(0)}<span className="text-lg"> mA</span>
           </p>
+          {/* Puissance calculee affichee en sous-titre du courant */}
           <p className="text-xs mt-1 text-gray-400">
             Puissance : {power.toFixed(2)} W
           </p>
         </Card>
       </div>
 
-      {/* Tableau infos capteurs */}
+      {/* Tableau recapitulatif de toutes les informations capteurs du panneau */}
       <Card className="p-4">
         <h3 className="font-semibold text-gray-800 mb-3">Informations capteurs</h3>
         <table className="w-full text-sm">
@@ -160,6 +173,7 @@ function PanelView({ panel }: { panel: SolarPanel }) {
             </tr>
             <tr>
               <td className="py-2 text-gray-500">Énergie produite 24h</td>
+              {/* Conversion de Wh en kWh pour affichage dans le tableau */}
               <td className="py-2 font-medium text-right text-green-600">
                 {(sensorData.calculated.energy24h / 1000).toFixed(3)} kWh
               </td>
@@ -174,7 +188,9 @@ function PanelView({ panel }: { panel: SolarPanel }) {
 export function Monitoring() {
   const { getVisiblePanels } = usePanels();
   const { user } = useAuth();
+  // Filtre les panneaux selon le role et l'email de l'utilisateur connecte
   const panels = getVisiblePanels(user?.email ?? '', user?.role ?? 'user');
+  // Panneau selectionne par defaut : le premier panneau visible ou 'P1'
   const [selectedId, setSelectedId] = useState<string>(panels[0]?.id ?? 'P1');
   const selectedPanel = panels.find((p) => p.id === selectedId) ?? panels[0];
 
@@ -193,6 +209,7 @@ export function Monitoring() {
         </Badge>
       </div>
 
+      {/* Onglets de selection du panneau a afficher */}
       <div className="flex gap-2 flex-wrap">
         {panels.map((panel) => {
           const c = colorMap[panel.color];
@@ -201,6 +218,7 @@ export function Monitoring() {
             <button
               key={panel.id}
               onClick={() => setSelectedId(panel.id)}
+              // Style actif : fond colore plein ; style inactif : fond clair avec bordure
               className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
                 active
                   ? `${c.dot} text-white border-transparent`
@@ -213,6 +231,7 @@ export function Monitoring() {
         })}
       </div>
 
+      {/* Affiche le detail du panneau selectionne */}
       {selectedPanel && <PanelView panel={selectedPanel} />}
     </div>
   );

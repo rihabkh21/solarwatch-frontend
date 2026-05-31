@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { SolarPanel } from '../data/mockData';
 import { useNavigate } from 'react-router';
 
+// Table de correspondance entre la couleur d'un panneau et les classes Tailwind associees
 const colorMap: Record<SolarPanel['color'], { bg: string; text: string; border: string; dot: string }> = {
   amber:  { bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-300',  dot: 'bg-amber-500' },
   blue:   { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-300',   dot: 'bg-blue-500' },
@@ -18,6 +19,7 @@ const colorMap: Record<SolarPanel['color'], { bg: string; text: string; border: 
   rose:   { bg: 'bg-rose-50',   text: 'text-rose-700',   border: 'border-rose-300',   dot: 'bg-rose-500' },
 };
 
+// Carte miniature d'un panneau affichant ses mesures en temps reel (puissance, tension, temperature, lumiere)
 function MiniPanelCard({ panel }: { panel: SolarPanel }) {
   const { sensorData } = usePanelData(panel, 3000);
   const c = colorMap[panel.color];
@@ -29,6 +31,7 @@ function MiniPanelCard({ panel }: { panel: SolarPanel }) {
   return (
     <Card
       className={`border-2 ${c.border} cursor-pointer hover:shadow-md transition-shadow`}
+      // Clic sur la carte redirige vers la page de monitoring detaille
       onClick={() => navigate('/monitoring')}
     >
       <div className={`${c.bg} px-3 py-2 flex items-center justify-between`}>
@@ -44,6 +47,7 @@ function MiniPanelCard({ panel }: { panel: SolarPanel }) {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Indicateur de statut actif avec animation pulse */}
           <div className="h-2 w-2 rounded-full animate-pulse bg-green-500" />
           <span className="text-xs text-gray-500">Actif</span>
         </div>
@@ -59,6 +63,7 @@ function MiniPanelCard({ panel }: { panel: SolarPanel }) {
         </div>
         <div className="space-y-0.5">
           <p className="text-gray-400 flex items-center gap-1"><Thermometer className="h-3 w-3" /> Temp.</p>
+          {/* Temperature affichee en rouge si elle depasse le seuil critique de 70°C */}
           <p className={`font-bold ${sensorData.ds18b20.temperature > 70 ? 'text-red-600' : 'text-gray-800'}`}>
             {sensorData.ds18b20.temperature.toFixed(1)} °C
           </p>
@@ -85,15 +90,18 @@ export function Dashboard() {
   const { getVisiblePanels } = usePanels();
   const [sensorHistory, setSensorHistory] = useState<any[]>([]);
 
+  // Horloge mise a jour toutes les secondes pour l'affichage de l'heure en temps reel
   const [time, setTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // Filtre les panneaux visibles selon le role et l'email de l'utilisateur connecte
   const visiblePanels = getVisiblePanels(user?.email ?? '', user?.role ?? 'user');
   const activePanels  = visiblePanels.filter((p) => p.active);
 
+  // Ecoute en temps reel les 24 dernieres entrees de l'historique Firestore pour le tableau de production
   useEffect(() => {
     const q = query(
       collection(db, 'sensorHistory'),
@@ -106,16 +114,21 @@ export function Dashboard() {
     return () => unsub();
   }, []);
 
+  // Calcule les KPI principaux depuis les dernieres donnees capteurs
   const stats = useMemo(() => {
     const power      = currentData.calculated.power;
     const energy24h  = currentData.calculated.energy24h;
     const efficiency = currentData.calculated.efficiency;
+    // Revenu calcule selon le tarif STEG de 0.15 TND par kWh
     const revenue    = (energy24h / 1000) * 0.15; // Tarif STEG 0.15 TND/kWh
     return { power, totalEnergy24h: energy24h, efficiency, revenue };
   }, [currentData]);
 
+  // Prepare les donnees du tableau de production :
+  // utilise l'historique Firestore si disponible, sinon genere 12 lignes depuis les donnees courantes
   const tableData = useMemo(() => {
     if (sensorHistory.length > 0) {
+      // Normalise les champs selon les deux formats possibles (ancien et nouveau ESP32)
       return sensorHistory.map((h) => ({
         timestamp:      h.timestamp?.toDate?.()?.toISOString() ?? new Date().toISOString(),
         calculated:     { power: h.power ?? h.calculated?.power ?? 0 },
@@ -130,6 +143,7 @@ export function Dashboard() {
         },
       }));
     }
+    // Fallback : 12 entrees simulees espacees de 5 minutes avec les donnees courantes
     return Array.from({ length: 12 }, (_, i) => ({
       timestamp:      new Date(Date.now() - i * 5 * 60 * 1000).toISOString(),
       calculated:     { power: currentData.calculated.power },
@@ -150,6 +164,7 @@ export function Dashboard() {
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
+            {/* Horloge temps reel mise a jour toutes les secondes */}
             <p className="text-xl font-bold text-orange-500">
               {time.toLocaleTimeString('fr-FR')}
             </p>
@@ -166,6 +181,7 @@ export function Dashboard() {
       </div>
 
       {/* KPI Cards */}
+      {/* Quatre indicateurs cles : puissance instantanee, energie 24h, rendement, revenus estimes */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="flex items-center gap-3">
@@ -181,6 +197,7 @@ export function Dashboard() {
             <Gauge className="h-8 w-8 text-blue-500" />
             <div>
               <p className="text-xs text-gray-500">Énergie 24h</p>
+              {/* Affichage en kWh si superieur a 1000 Wh, sinon en Wh */}
               <p className="text-xl font-bold">
                   {stats.totalEnergy24h >= 1000
                     ? `${(stats.totalEnergy24h / 1000).toFixed(3)} kWh`
@@ -223,6 +240,7 @@ export function Dashboard() {
             <span className="text-xs text-green-600 font-medium">Temps réel</span>
           </div>
         </div>
+        {/* Grille responsive des cartes panneaux : 1 colonne mobile, 2 tablette, 3 desktop */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {activePanels.map((panel) => (
             <MiniPanelCard key={panel.id} panel={panel} />
@@ -260,6 +278,7 @@ export function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y">
+              {/* Affiche les 12 premieres entrees du tableau de production */}
               {tableData.slice(0, 12).map((data, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
                   <td className="py-3 text-gray-900">
@@ -277,6 +296,7 @@ export function Dashboard() {
       </Card>
 
       {/* Sensor Status Live */}
+      {/* Affichage en direct des quatre capteurs principaux de l'ESP32 */}
       <Card className="p-5">
         <h3 className="font-semibold mb-3 flex items-center gap-2">
           Capteurs ESP32 — Panneau P1

@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import * as React from "react";
-import * as SheetPrimitive from "@radix-ui/react-dialog";
+import { Dialog as SheetPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
 import { cn } from "./utils";
 
@@ -21,7 +21,7 @@ function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Po
   return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
 }
 
-// ✅ forwardRef corrige le warning "Function components cannot be given refs"
+// forwardRef corrige le warning "Function components cannot be given refs"
 const SheetOverlay = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>

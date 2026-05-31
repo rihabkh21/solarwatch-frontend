@@ -23,12 +23,15 @@ import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { RoleBasedRoute } from "./components/RoleBasedRoute";
 
+// Definition de toutes les routes de l'application avec leurs regles d'acces
 const router = createBrowserRouter([
   {
+    // Page de connexion accessible sans authentification
     path: "/login",
     Component: Login,
   },
   {
+    // Toutes les routes enfants sont protegees : l'utilisateur doit etre connecte
     path: "/",
     element: (
       <ProtectedRoute>
@@ -36,8 +39,10 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
+      // Tableau de bord : page d'accueil apres connexion, accessible a tous les roles
       { index: true, Component: Dashboard },
       {
+        // Monitoring temps reel : reserve aux admins et techniciens
         path: "monitoring",
         element: (
           <RoleBasedRoute allowedRoles={['admin', 'technicien']}>
@@ -46,6 +51,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Analyse IA des donnees capteurs : reserve aux admins et techniciens
         path: "ai-analysis",
         element: (
           <RoleBasedRoute allowedRoles={['admin', 'technicien']}>
@@ -54,6 +60,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Gestion des alertes capteurs : reserve aux admins et techniciens
         path: "alerts",
         element: (
           <RoleBasedRoute allowedRoles={['admin', 'technicien']}>
@@ -62,6 +69,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Suivi des interventions de maintenance : reserve aux admins et techniciens
         path: "interventions",
         element: (
           <RoleBasedRoute allowedRoles={['admin', 'technicien']}>
@@ -70,6 +78,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Historique des mesures capteurs : reserve aux admins et techniciens
         path: "history",
         element: (
           <RoleBasedRoute allowedRoles={['admin', 'technicien']}>
@@ -77,8 +86,10 @@ const router = createBrowserRouter([
           </RoleBasedRoute>
         ),
       },
+      // Parametres personnels : accessible a tous les utilisateurs connectes
       { path: "settings", Component: Settings },
       {
+        // Tableau de bord admin : reserve aux administrateurs uniquement
         path: "admin",
         element: (
           <RoleBasedRoute allowedRoles={['admin']}>
@@ -87,6 +98,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Gestion des comptes utilisateurs : reserve aux administrateurs
         path: "admin/users",
         element: (
           <RoleBasedRoute allowedRoles={['admin']}>
@@ -95,6 +107,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Gestion des panneaux solaires : reserve aux administrateurs
         path: "admin/panels",
         element: (
           <RoleBasedRoute allowedRoles={['admin']}>
@@ -103,6 +116,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Configuration systeme (seuils, intervalles) : reserve aux administrateurs
         path: "admin/settings",
         element: (
           <RoleBasedRoute allowedRoles={['admin']}>
@@ -111,6 +125,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Configuration materielle de l'ESP32 et des capteurs : reserve aux administrateurs
         path: "admin/hardware",
         element: (
           <RoleBasedRoute allowedRoles={['admin']}>
@@ -119,6 +134,7 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Generation de rapports et export des donnees : reserve aux administrateurs
         path: "admin/reports",
         element: (
           <RoleBasedRoute allowedRoles={['admin']}>
@@ -126,17 +142,23 @@ const router = createBrowserRouter([
           </RoleBasedRoute>
         ),
       },
+      // Page 404 : affichee pour toute route non reconnue
       { path: "*", Component: NotFound },
     ],
   },
 ]);
 
+// Composant racine de l'application : fournit les contextes globaux a toute l'arborescence
 function App() {
   return (
+    // AuthProvider : gestion de l'authentification et des roles utilisateurs
     <AuthProvider>
+      {/* PanelProvider : gestion des panneaux solaires et de leurs donnees */}
       <PanelProvider>
+        {/* InterventionProvider : gestion des interventions de maintenance */}
         <InterventionProvider>
           <RouterProvider router={router} />
+          {/* Toaster : systeme de notifications toast affiche globalement */}
           <Toaster />
         </InterventionProvider>
       </PanelProvider>
@@ -145,4 +167,3 @@ function App() {
 }
 
 export default App;
-

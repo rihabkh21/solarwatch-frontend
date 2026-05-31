@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import {
   LayoutDashboard,
   Activity,
@@ -339,6 +339,12 @@ export function Layout() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0 flex flex-col overflow-hidden">
+          {/* Fix Warning Radix : SheetTitle et SheetDescription requis pour l'accessibilite */}
+          {/* sr-only les rend invisibles visuellement mais lisibles par les lecteurs d'ecran */}
+          <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+          <SheetDescription className="sr-only">
+            Navigation principale de l'application SolarWatch
+          </SheetDescription>
           <NavContent {...navProps} />
         </SheetContent>
       </Sheet>

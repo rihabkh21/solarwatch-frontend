@@ -18,16 +18,20 @@ import { ref, onValue, set } from 'firebase/database';
 import { auth, db, realtimeDb } from '../config/firebase';
 import type { SensorData } from '../data/mockData';
 
+// Connecte un utilisateur avec email et mot de passe via Firebase Authentication
 export const loginWithEmail = async (email: string, password: string) => {
   if (!auth) throw new Error('Firebase Auth non initialisé');
   return await signInWithEmailAndPassword(auth, email, password);
 };
 
+// Deconnecte l'utilisateur actuellement connecte
 export const logout = async () => {
   if (!auth) throw new Error('Firebase Auth non initialisé');
   return await signOut(auth);
 };
 
+// Abonne un callback aux changements d'etat de connexion Firebase
+// Retourne une fonction vide si Firebase Auth n'est pas initialise
 export const onAuthChange = (callback: (user: FirebaseUser | null) => void) => {
   if (!auth) {
     callback(null);
@@ -36,6 +40,8 @@ export const onAuthChange = (callback: (user: FirebaseUser | null) => void) => {
   return onAuthStateChanged(auth, callback);
 };
 
+// Ecoute en temps reel le noeud 'sensors/current' dans Realtime Database
+// et appelle le callback a chaque nouvelle mesure recue
 export const listenToSensorData = (callback: (data: SensorData) => void) => {
   if (!realtimeDb) {
     return () => {};
@@ -51,6 +57,8 @@ export const listenToSensorData = (callback: (data: SensorData) => void) => {
   });
 };
 
+// Ecrase les donnees courantes du capteur dans Realtime Database
+// avec horodatage local en millisecondes
 export const updateSensorData = async (data: SensorData) => {
   if (!realtimeDb) throw new Error('Firebase Realtime Database non initialisé');
   
@@ -61,6 +69,8 @@ export const updateSensorData = async (data: SensorData) => {
   });
 };
 
+// Ajoute une entree dans la collection Firestore 'sensorHistory'
+// avec horodatage serveur pour conserver l'historique des mesures
 export const addSensorHistory = async (data: SensorData) => {
   if (!db) throw new Error('Firebase Firestore non initialisé');
   
@@ -72,6 +82,8 @@ export const addSensorHistory = async (data: SensorData) => {
   });
 };
 
+// Ecoute en temps reel les N dernieres entrees de l'historique capteurs,
+// triees par date decroissante, et convertit les Timestamps Firestore en ISO string
 export const listenToRecentHistory = (
   limitCount: number,
   callback: (data: SensorData[]) => void
@@ -90,6 +102,7 @@ export const listenToRecentHistory = (
       return {
         ...docData,
         id: doc.id,
+        // Conversion du Timestamp Firestore en chaine ISO, ou conservation du timestamp existant
         timestamp: docData.createdAt instanceof Timestamp 
           ? docData.createdAt.toDate().toISOString() 
           : docData.timestamp
@@ -99,17 +112,20 @@ export const listenToRecentHistory = (
   });
 };
 
+// Structure d'une alerte stockee dans Firestore
 export interface FirebaseAlert {
   id: string;
   type: 'critical' | 'warning' | 'info';
   message: string;
   sensor: string;
-  value?: number;
-  threshold?: number;
+  value?: number;       // Valeur mesuree ayant declenche l'alerte
+  threshold?: number;   // Seuil qui a ete depasse
   timestamp: string;
   resolved: boolean;
 }
 
+// Cree une nouvelle alerte dans Firestore avec horodatage serveur
+// et statut 'resolved: false' par defaut
 export const addAlert = async (alert: Omit<FirebaseAlert, 'id' | 'timestamp'>) => {
   if (!db) throw new Error('Firebase Firestore non initialisé');
   
@@ -122,6 +138,8 @@ export const addAlert = async (alert: Omit<FirebaseAlert, 'id' | 'timestamp'>) =
   });
 };
 
+// Ecoute en temps reel les 50 dernieres alertes triees par date decroissante
+// et convertit les Timestamps Firestore en chaines ISO lisibles
 export const listenToAlerts = (callback: (alerts: FirebaseAlert[]) => void) => {
   if (!db) {
     callback([]);
@@ -129,6 +147,7 @@ export const listenToAlerts = (callback: (alerts: FirebaseAlert[]) => void) => {
   }
   
   const alertsRef = collection(db, 'alerts');
+  // Limite a 50 alertes pour eviter de charger un historique trop volumineux
   const q = query(alertsRef, orderBy('timestamp', 'desc'), limit(50));
   
   return onSnapshot(q, (snapshot) => {
@@ -137,6 +156,7 @@ export const listenToAlerts = (callback: (alerts: FirebaseAlert[]) => void) => {
       return {
         ...data,
         id: doc.id,
+        // Fallback sur l'heure actuelle si le Timestamp Firestore est absent
         timestamp: data.timestamp instanceof Timestamp 
           ? data.timestamp.toDate().toISOString() 
           : new Date().toISOString()
@@ -146,6 +166,8 @@ export const listenToAlerts = (callback: (alerts: FirebaseAlert[]) => void) => {
   });
 };
 
+// Enregistre les statistiques journalieres (energie, rendement, revenu) dans Firestore
+// pour constituer un historique de performance du systeme solaire
 export const saveStats = async (stats: {
   totalEnergy24h: number;
   efficiency: number;
